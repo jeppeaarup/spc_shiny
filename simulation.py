@@ -1,13 +1,14 @@
-def simulate_data(n):
-    import numpy as np
-    import pandas as pd
+import numpy as np
+import pandas as pd
 
+
+def apply_shift(values, onset, size):
+    2+2
+
+def simulate_data(n, std, mean):
     rng = np.random.default_rng()
-
-    data = pd.DataFrame({
-        'y': rng.normal(size=n),
-        'x': np.arange(n) + 1
+    return pd.DataFrame({
+        'value': rng.normal(loc=mean, scale=std, size=n),
+        'index': np.arange(n) + 1
     })
 
-    return data
-    
