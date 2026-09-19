@@ -1,5 +1,6 @@
-altair==6.2.2
-numpy==2.5.3
-pandas==3.0.5
-shiny==1.8.0
-shinywidgets==0.8.1
+shiny
+shinywidgets
+altair==5.3.0
+toolz
+pandas
+numpy
