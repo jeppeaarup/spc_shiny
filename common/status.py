@@ -1,3 +1,5 @@
+import pandas as pd
+
 def get_violation_status(enabled: bool, flags: pd.Series) -> tuple[str, str]:
     """
     Determine the status color/text for a violation indicator.
