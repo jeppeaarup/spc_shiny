@@ -2,12 +2,14 @@ import altair as alt
 import numpy as np
 import pandas as pd
 
-def build_shewhart_chart(data, cal_n, limits, flags):
+PRIMARY_COLOR = "steelblue"
+CALIBRATION_FILL = "white"
+ALERT_COLOR = "red"
 
-    PRIMARY_COLOR = "steelblue"
-    ALERT_COLOR = "red"
 
-    # Data chart
+def build_base_chart(data, cal_n, flags):
+
+    # Add data columns
     data = data.copy()
     data["period"] = np.where(data["index"] <= cal_n, "Calibration", "Monitoring")
     data["flagged"] = flags
@@ -23,14 +25,15 @@ def build_shewhart_chart(data, cal_n, limits, flags):
         y=alt.Y('value:Q', scale=alt.Scale(padding=20)).title('Value'),
     )
 
+    # Data chart
     line = base.mark_line(color=PRIMARY_COLOR)
-
+    
     point = base.mark_point(size=100, filled=True, opacity=1).encode(
         fill=alt.Fill(
             'status',
             scale=alt.Scale(
                 domain=["Calibration", "Monitoring", "Violation"],
-                range=["white", PRIMARY_COLOR, ALERT_COLOR],
+                range=[CALIBRATION_FILL, PRIMARY_COLOR, ALERT_COLOR],
             ),
             legend=alt.Legend(title=None, orient='top'),
         ),
@@ -43,6 +46,12 @@ def build_shewhart_chart(data, cal_n, limits, flags):
             legend=None,
         ),
     )
+
+    return line + point
+
+def build_shewhart_chart(data, cal_n, limits, flags):
+
+    base = build_base_chart(data, cal_n, flags)
 
     limits_df = pd.DataFrame({
         "value": [limits.ucl, limits.lcl, limits.uwl, limits.lwl, limits.center],
@@ -59,8 +68,9 @@ def build_shewhart_chart(data, cal_n, limits, flags):
         color=alt.Color("kind:N", scale=limit_scale, legend=alt.Legend(title=None, orient='top')),
     )
 
-    return (limit_lines + line + point
-            ).configure_axis(grid=False, titleFontSize=14, labelFontSize=12
-                             ).configure_legend(labelFontSize=12, symbolSize=100)
+    return (limit_lines + base
+            ).configure_axis(
+                grid=False, titleFontSize=14, labelFontSize=12
+                ).configure_legend(labelFontSize=12, symbolSize=100)
 
 
