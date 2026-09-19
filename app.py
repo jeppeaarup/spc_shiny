@@ -3,9 +3,9 @@ from shiny.express import input, ui, render
 from shinywidgets import render_altair
 import pandas as pd
 
-from simulation import simulate_data
-from charts import build_shewhart_chart
-from rules import compute_calibration_stats, compute_shewhart_limits, compute_shewhart_violations
+import data as dt
+import common as cm
+import shewhart as sh
 
 with ui.sidebar():
     with ui.card():
@@ -19,8 +19,8 @@ with ui.sidebar():
         ui.card_header("Calibration controls")
         
         @render.table(header=False, border=1)
-        def do_cal_stats_display():
-            stats = do_cal_stats()
+        def cal_stats_display():
+            stats = cal_stats()
             return pd.DataFrame({
                 "Statistic": ["Mean", "Std. dev."],
                 "Value": [round(stats.mean, 2), round(stats.std, 2)]
@@ -36,22 +36,27 @@ with ui.sidebar():
 @reactive.calc
 @reactive.event(input.sim_action, ignore_none=False)
 def sim_data():
-    return simulate_data(input.sim_n(), input.sim_std(), input.sim_mean())
+    return dt.simulate_data(input.sim_n(), input.sim_std(), input.sim_mean())
 
 @reactive.calc
-def do_cal_stats():
-    return compute_calibration_stats(sim_data(), input.cal_n())
+def cal_stats():
+    return cm.compute_calibration_stats(sim_data(), input.cal_n())
 
 @reactive.calc
-def do_violations():
-    stats = do_cal_stats()
-    shewhart_limits = compute_shewhart_limits(
-        stats,
+def shewhart_limits():
+    return sh.compute_limits(
+        cal_stats(),
         k_warning=input.shewhart_warning_k(),
         k_control=input.shewhart_control_k(),
     )
-    return compute_shewhart_violations(
-        sim_data(), input.cal_n(), shewhart_limits, input.shewhart_enabled_rules()
+
+@reactive.calc
+def shewhart_violations():
+    return sh.compute_violations(
+        sim_data(), 
+        input.cal_n(), 
+        shewhart_limits(), 
+        input.shewhart_enabled_rules()
     )
 
 # Shewhart chart card ----
@@ -61,16 +66,7 @@ with ui.card():
         with ui.sidebar(position="right"):
             @render.express
             def violation_status():
-                if not input.shewhart_enabled_rules():
-                    color = "grey"
-                    text = "No rules enabled"
-                elif do_violations().any():
-                    color = "red"
-                    text = "⚠ Violation detected"
-                else:
-                    color = "green"
-                    text = "✓ In control"
-
+                color, text = cm.get_violation_status(bool(input.shewhart_enabled_rules()), shewhart_violations())
                 ui.tags.strong(
                     text,
                     style=f"color: {color}; border: 1px solid {color}; padding: 4px 8px; border-radius: 4px;"
@@ -88,14 +84,8 @@ with ui.card():
                                      })
         @render_altair
         def shewhart_chart():
-            stats = do_cal_stats()
-            shewhart_limits = compute_shewhart_limits(
-                stats,
-                k_warning=input.shewhart_warning_k(),
-                k_control=input.shewhart_control_k(),
-            )
-            flags = do_violations()
-            return build_shewhart_chart(sim_data(), input.cal_n(), shewhart_limits, flags)
+            flags = shewhart_violations()
+            return sh.build_chart(sim_data(), input.cal_n(), shewhart_limits(), flags)
 
 # CUSUM card ----
 with ui.card():

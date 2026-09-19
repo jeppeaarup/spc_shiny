@@ -7,8 +7,11 @@ CALIBRATION_FILL = "white"
 ALERT_COLOR = "red"
 
 
-def build_base_chart(data, cal_n, flags):
-
+def build_base_chart(data: pd.DataFrame, cal_n: int, flags: pd.Series) -> alt.LayerChart:
+    """
+    Build the shared line + point layer used by all control charts.
+    """
+    
     # Add data columns
     data = data.copy()
     data["period"] = np.where(data["index"] <= cal_n, "Calibration", "Monitoring")
@@ -27,7 +30,7 @@ def build_base_chart(data, cal_n, flags):
 
     # Data chart
     line = base.mark_line(color=PRIMARY_COLOR)
-    
+
     point = base.mark_point(size=100, filled=True, opacity=1).encode(
         fill=alt.Fill(
             'status',
@@ -48,29 +51,3 @@ def build_base_chart(data, cal_n, flags):
     )
 
     return line + point
-
-def build_shewhart_chart(data, cal_n, limits, flags):
-
-    base = build_base_chart(data, cal_n, flags)
-
-    limits_df = pd.DataFrame({
-        "value": [limits.ucl, limits.lcl, limits.uwl, limits.lwl, limits.center],
-        "kind": ["Control limit", "Control limit", "Warning limit", "Warning limit", "Center line"],
-    })
-
-    limit_scale = alt.Scale(
-        domain=["Control limit", "Warning limit", "Center line"],
-        range=[ALERT_COLOR, "orange", "black"],
-    )
-
-    limit_lines = alt.Chart(limits_df).mark_rule().encode(
-        y="value:Q",
-        color=alt.Color("kind:N", scale=limit_scale, legend=alt.Legend(title=None, orient='top')),
-    )
-
-    return (limit_lines + base
-            ).configure_axis(
-                grid=False, titleFontSize=14, labelFontSize=12
-                ).configure_legend(labelFontSize=12, symbolSize=100)
-
-
